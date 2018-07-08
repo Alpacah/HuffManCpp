@@ -121,23 +121,24 @@ int main(){
 
             // Output
             ofstream outfile("out.txt", ios::out | ios::binary);
-            string binstring;
             // Header
+            string header;
             for (map<unsigned char, string>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
-                binstring += it->first;
-                binstring += it->second;
+                header += it->first;
+                header += it->second;
             }
-            binstring += '$'; // $ <=> header/body separator
+            outfile << header;
             // Body
+            string binstring;
             for (unsigned int i = 0; i < content.size(); i++){
                 binstring += huffcodes[content.at(i)];
             }
             binstring = get_bin_outstring(binstring);
-            outfile << binstring;
+            outfile << '$' << binstring; // $ for the end of the header
             outfile.close();
 
-            float compression_ratio = (float) binstring.length() / (float) content.length();
-            cout << "Compression successful, " << content.length() << " bytes -> " << binstring.length() << " bytes" << endl << "Compression ratio: " << compression_ratio << endl;
+            float compression_ratio = (float) (binstring.length() + header.length()) / (float) content.length();
+            cout << "Compression successful, " << content.length() << " bytes -> " << (binstring.length() + header.length()) << " bytes" << endl << "Compression ratio: " << (compression_ratio * 100) << "%" << endl;
         }else{
             // MODE DECODE
             map<string, unsigned char> huffcodes;
@@ -166,7 +167,7 @@ int main(){
                     }
                 }else{
                     // BODY
-                    for (int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){
+                    for (unsigned int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){
                         body += ((actual_char & (1 << c)) != 0) ? "1" : "0";;
                     }
                 }
@@ -175,7 +176,7 @@ int main(){
             // Decode body
             string output;
             tmp = "";
-            for (int c = 0; c < body.length(); c++){
+            for (unsigned int c = 0; c < body.length(); c++){
                 tmp += body[c];
                 if (huffcodes.find(tmp) != huffcodes.end()){
                     output += huffcodes[tmp];
