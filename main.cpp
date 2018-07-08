@@ -6,7 +6,6 @@
 #include <map>
 #include <fstream>
 
-
 using namespace std;
 
 struct Node{
@@ -63,7 +62,6 @@ void print_code(Node* root, string str, map<unsigned char, string>* huff){
         print_code(root->rightChild, str + "1", huff);
     }
 }
-
 
 int main(){
     cout << "-- HUFFMAN DU PAUVRE --" << endl;
@@ -123,17 +121,23 @@ int main(){
 
             // Output
             ofstream outfile("out.txt", ios::out | ios::binary);
+            string binstring;
             // Header
             for (map<unsigned char, string>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
-                outfile << it->first << it->second;
+                binstring += it->first;
+                binstring += it->second;
             }
+            binstring += '$'; // $ <=> header/body separator
             // Body
-            string binstring;
             for (unsigned int i = 0; i < content.size(); i++){
                 binstring += huffcodes[content.at(i)];
             }
-            outfile << '$' << get_bin_outstring(binstring); // $ for the end of the header
+            binstring = get_bin_outstring(binstring);
+            outfile << binstring;
             outfile.close();
+
+            float compression_ratio = (float) binstring.length() / (float) content.length();
+            cout << "Compression successful, " << content.length() << " bytes -> " << binstring.length() << " bytes" << endl << "Compression ratio: " << compression_ratio << endl;
         }else{
             // MODE DECODE
             map<string, unsigned char> huffcodes;
@@ -162,7 +166,6 @@ int main(){
                     }
                 }else{
                     // BODY
-                    //cout << endl << "[" << i << "/" << content.length() << "] " << actual_char << ": ";
                     for (int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){
                         body += ((actual_char & (1 << c)) != 0) ? "1" : "0";;
                     }
