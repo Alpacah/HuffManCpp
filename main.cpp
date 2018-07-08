@@ -167,7 +167,7 @@ int main(){
                     }
                 }else{
                     // BODY
-                    for (unsigned int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){
+                    for (int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){ // Don't put c as unsigned because it throws a bad alloc erro
                         body += ((actual_char & (1 << c)) != 0) ? "1" : "0";;
                     }
                 }
