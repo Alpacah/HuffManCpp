@@ -29,7 +29,7 @@ bool sort_tree(Node* a, Node* b){
     }
 }
 
-string get_bin_outstring(string str){
+string str_to_bin(string str){
     string out;
     int counter = sizeof(unsigned char) * 8 - 1;
     unsigned char mask;
@@ -50,7 +50,7 @@ string get_bin_outstring(string str){
     return out;
 }
 
-void print_code(Node* root, string str, map<unsigned char, string>* huff){
+void set_codes(Node* root, string str, map<unsigned char, string>* huff){
     if (!root){
         return;
     }else{
@@ -58,8 +58,8 @@ void print_code(Node* root, string str, map<unsigned char, string>* huff){
             cout << root->value << ": " << str << endl;
             (*huff)[root->value] = str;
         }
-        print_code(root->leftChild, str + "0", huff);
-        print_code(root->rightChild, str + "1", huff);
+        set_codes(root->leftChild, str + "0", huff);
+        set_codes(root->rightChild, str + "1", huff);
     }
 }
 
@@ -90,10 +90,7 @@ int main(){
             map<unsigned char, unsigned int> frequencies;
             for (unsigned int i = 0; i < content.length(); i++){
                 unsigned char actual_char = content.at(i);
-                if (frequencies.find(actual_char) == frequencies.end()){
-                    frequencies[actual_char] = 0;
-                }
-                frequencies[actual_char] += 1;
+                frequencies[actual_char] = (frequencies.find(actual_char) == frequencies.end()) ? 1 : (frequencies[actual_char] + 1);
             }
 
             // Build tree
@@ -117,10 +114,11 @@ int main(){
 
             // Print tree and get the associative array
             map<unsigned char, string> huffcodes;
-            print_code(tree[0], "", &huffcodes);
+            set_codes(tree[0], "", &huffcodes);
 
             // Output
             ofstream outfile("out.txt", ios::out | ios::binary);
+
             // Header
             string header;
             for (map<unsigned char, string>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
@@ -128,12 +126,13 @@ int main(){
                 header += it->second;
             }
             outfile << header;
+
             // Body
             string binstring;
             for (unsigned int i = 0; i < content.size(); i++){
                 binstring += huffcodes[content.at(i)];
             }
-            binstring = get_bin_outstring(binstring);
+            binstring = str_to_bin(binstring);
             outfile << '$' << binstring; // $ for the end of the header
             outfile.close();
 
