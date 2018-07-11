@@ -68,52 +68,36 @@ void set_codes(Node* root, string str, map<unsigned char, string>* huff){
     }else{
         if (root->value != '$'){
             (*huff)[root->value] = str;
+            cout << root->value << ": " << str << endl;
         }
         set_codes(root->leftChild, str + "0", huff);
         set_codes(root->rightChild, str + "1", huff);
     }
 }
 
-void print_encode_huffcodes(map<unsigned char, string> huffcodes){
-    vector<pair<unsigned char, string>> huffcodes_vector;
-    for (map<unsigned char, string>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
-        huffcodes_vector.push_back(make_pair(it->first, it->second));
-    }
+// FILES OPERATIONS //
+string get_content(string path){
+    string result;
+    ifstream file(path, ios::in | ios::binary);
 
-    sort(huffcodes_vector.begin(), huffcodes_vector.end(), sort_huffcodes);
-
-    for (vector<pair<unsigned char, string>>::const_iterator it = huffcodes_vector.begin(); it != huffcodes_vector.end(); it++){
-        if (it->first == '\n'){
-            cout << "\\n";
-        }else if (it->first == '\r'){
-            cout << "\\r";
-        }else{
-            cout << it->first;
+    if (file){
+        string line;
+        while (getline(file, line)){
+            result += line + '\n';
         }
-        cout << ": " << it->second << endl;
+        result.erase(prev(result.end()));
+
+        return result;
+    }else{
+        return "";
     }
 }
 
-void print_decode_huffcodes(map<string, unsigned char> huffcodes){
-    vector<pair<unsigned char, string>> huffcodes_vector;
-    for (map<string, unsigned char>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
-        huffcodes_vector.push_back(make_pair(it->second, it->first));
-    }
-
-    sort(huffcodes_vector.begin(), huffcodes_vector.end(), sort_huffcodes);
-
-    for (vector<pair<unsigned char, string>>::const_iterator it = huffcodes_vector.begin(); it != huffcodes_vector.end(); it++){
-        if (it->first == '\n'){
-            cout << "\\n";
-        }else if (it->first == '\r'){
-            cout << "\\r";
-        }else{
-            cout << it->first;
-        }
-        cout << ": " << it->second << endl;
-    }
+void write_file(string path, string content){
+    ofstream file(path, ios::out | ios::binary);
+    file << content;
+    file.close();
 }
-
 
 int main(){
     cout << "-- HUFFMAN DU PAUVRE --" << endl;
@@ -121,25 +105,16 @@ int main(){
     string path;
     cin >> path;
 
-    ifstream file;
-    file.open(path, ios::in | ios::binary);
+    string content = get_content(path);
 
-    if (file){
-        // Read file
-        string line, content;
-        while (getline(file, line)){
-            content += line + '\n';
-        }
-        content.erase(prev(content.end()));
-        file.close();
-
+    if (content != ""){
         // Choose mode
         cout << "[0]: ENCODE | [1]: DECODE" << endl;
         int mode;
         cin >> mode;
 
         if (mode == 0){
-            // MODE ENCODE
+            // Get frequencies
             map<unsigned char, unsigned int> frequencies;
             for (unsigned int i = 0; i < content.length(); i++){
                 unsigned char actual_char = content.at(i);
@@ -168,77 +143,97 @@ int main(){
             // Print tree and get the associative array
             map<unsigned char, string> huffcodes;
             set_codes(tree[0], "", &huffcodes);
-            print_encode_huffcodes(huffcodes);
 
-            // Output
-            ofstream outfile("out.txt", ios::out | ios::binary);
+            // ENCODING //
+            string encoded_string;
 
             // Header
             string header;
-            for (map<unsigned char, string>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
-                header += it->first;
-                header += it->second;
+            unsigned char header_char_count = huffcodes.size();
+            for (int i = sizeof(unsigned char) * 8 - 1; i >= 0; i--){
+                header += ((header_char_count & (1 << i)) != 0) ? '1' : '0';
             }
-            outfile << header;
+
+            for (map<unsigned char, string>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
+                // symbol - 1 byte
+                for (int i = sizeof(unsigned char) * 8 - 1; i >= 0; i--){
+                    header += ((it->first & (1 << i)) != 0) ? '1' : '0';
+                }
+
+                // code length - 1 byte
+                unsigned char code_length = (it->second).length();
+                for (int i = sizeof(unsigned char) * 8 - 1; i >= 0; i--){
+                    header += ((code_length & (1 << i)) != 0) ? '1' : '0';
+                }
+
+                // code - code_length bits
+                for (int i = 0; i < (it->second).length(); i++){
+                    header += (it->second).at(i);
+                }
+            }
+            cout << "Bin header: " << (header.length()/8) << " bytes" << endl;
+            encoded_string += header;
 
             // Body
-            string binstring;
+            string body;
             for (unsigned int i = 0; i < content.size(); i++){
-                binstring += huffcodes[content.at(i)];
-                cout << content.at(i);
+                body += huffcodes[content.at(i)];
             }
-            binstring = str_to_bin(binstring);
-            outfile << '$' << binstring; // $ for the end of the header
-            outfile.close();
+            cout << "Body: " << (body.length()/8) << " bytes" << endl;
+            encoded_string += body;
 
-            float compression_ratio = (float) (binstring.length() + header.length()) / (float) content.length();
-            cout << "Compression successful, " << content.length() << " bytes -> " << (binstring.length() + header.length()) << " bytes" << endl << "Compression ratio: " << (compression_ratio * 100) << "%" << endl;
+            // Save
+            encoded_string = str_to_bin(encoded_string);
+            write_file("out.txt", encoded_string);
         }else{
             // MODE DECODE
+            unsigned char filling_bits = content.at(0);
+            content.erase(0, 1);
+            unsigned char dico_size = content.at(0);
+            content.erase(0, 1);
             map<string, unsigned char> huffcodes;
-            unsigned char header_char = '$';
-            unsigned char last_byte_mask = '$';
-            string tmp, body;
-            int decode_pos = 0; // 0: header | 1: body
+
+            // Get decoded binary
+            string decoded_binary;
             for (unsigned int i = 0; i < content.length(); i++){
                 unsigned char actual_char = content.at(i);
-
-                if (decode_pos == 0){
-                    // HEADER
-                    if (actual_char != '$'){
-                        if (actual_char == '1' || actual_char == '0'){
-                            tmp += actual_char;
-                        }else{
-                            if (header_char != '$'){
-                                huffcodes[tmp] = header_char;
-                            }
-                            header_char = actual_char;
-                            tmp = "";
-                        }
-                    }else{
-                        huffcodes[tmp] = header_char;
-                        print_decode_huffcodes(huffcodes);
-                        decode_pos = 1;
-                    }
-                }else{
-                    // BODY
-                    if (last_byte_mask == '$'){
-                        // Get last byte mask
-                        last_byte_mask = actual_char;
-                    }else{
-                        // Decode
-                        for (int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){ // Don't put c as unsigned because it throws a bad alloc erro
-                            body += ((actual_char & (1 << c)) != 0) ? "1" : "0";;
-                        }
-                    }
+                for (int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){ // Don't put c as unsigned because it throws a bad alloc erro
+                    decoded_binary += ((actual_char & (1 << c)) != 0) ? "1" : "0";;
                 }
             }
 
+            // Decode header
+            int cursor = 0;
+            for (int i = 0; i < dico_size; i++){
+                // Get symbol
+                unsigned char symbol;
+                for (int c = 0; c < sizeof(unsigned char) * 8; c++){
+                    symbol = (decoded_binary.at(cursor + c) == '1') ? (symbol | (1 << (7 - c))) : (symbol & ~(1 << (7 - c)));
+                }
+                cursor += 8;
+
+                // Code length
+                unsigned char code_length;
+                for (int c = 0; c < sizeof(unsigned char) * 8; c++){
+                    code_length = (decoded_binary.at(cursor + c) == '1') ? (code_length | (1 << (7 - c))) : (code_length & ~(1 << (7 - c)));
+                }
+                cursor += 8;
+
+                // Code
+                string code;
+                for (int c = 0; c < code_length; c++){
+                    code += decoded_binary.at(cursor + c);
+                }
+                cursor += code_length;
+                huffcodes[code] = symbol;
+                cout << symbol << ": " << code << endl;
+            }
+
             // Decode body
-            string output;
+            string tmp, output;
             tmp = "";
-            for (unsigned int c = 0; c < body.length() - last_byte_mask; c++){
-                tmp += body[c];
+            for (unsigned int c = cursor; c < decoded_binary.length() - filling_bits; c++){
+                tmp += decoded_binary[c];
                 if (huffcodes.find(tmp) != huffcodes.end()){
                     output += huffcodes[tmp];
                     tmp = "";
@@ -247,7 +242,7 @@ int main(){
             cout << output << endl;
         }
     }else{
-        cerr << "Failed to open file" << endl;
+        cerr << "Failed to open file " << path << endl;
     }
 
     return 0;
