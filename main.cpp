@@ -29,25 +29,37 @@ bool sort_tree(Node* a, Node* b){
     }
 }
 
+bool sort_huffcodes(pair<unsigned char, string> a, pair<unsigned char, string> b){
+    if ((a.second).length() != (b.second).length()){
+        return a.second.length() < b.second.length();
+    }else{
+        return a.first < b.first;
+    }
+}
+
 string str_to_bin(string str){
     string out;
-    int counter = sizeof(unsigned char) * 8 - 1;
+    short int counter = sizeof(unsigned char) * 8 - 1;
     unsigned char mask;
 
+    // Encode content
     for (unsigned int i = 0; i < str.length(); i++){
-        if (str.at(i) == '1'){
-            mask |= (1 << counter);
-        }else{
-            mask &= ~(1 << counter);
-        }
+        mask = (str.at(i) == '1') ? (mask | (1 << counter)) : (mask & ~(1 << counter));
         counter -= 1;
+
         if (counter == -1){
             counter = sizeof(unsigned char) * 8 - 1;
             out += mask;
         }
     }
+    out += mask;
 
-    return out;
+    // Get last byte mask
+    string last_byte_mask;
+    mask = counter;
+    last_byte_mask += mask;
+
+    return last_byte_mask + out;
 }
 
 void set_codes(Node* root, string str, map<unsigned char, string>* huff){
@@ -55,13 +67,53 @@ void set_codes(Node* root, string str, map<unsigned char, string>* huff){
         return;
     }else{
         if (root->value != '$'){
-            cout << root->value << ": " << str << endl;
             (*huff)[root->value] = str;
         }
         set_codes(root->leftChild, str + "0", huff);
         set_codes(root->rightChild, str + "1", huff);
     }
 }
+
+void print_encode_huffcodes(map<unsigned char, string> huffcodes){
+    vector<pair<unsigned char, string>> huffcodes_vector;
+    for (map<unsigned char, string>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
+        huffcodes_vector.push_back(make_pair(it->first, it->second));
+    }
+
+    sort(huffcodes_vector.begin(), huffcodes_vector.end(), sort_huffcodes);
+
+    for (vector<pair<unsigned char, string>>::const_iterator it = huffcodes_vector.begin(); it != huffcodes_vector.end(); it++){
+        if (it->first == '\n'){
+            cout << "\\n";
+        }else if (it->first == '\r'){
+            cout << "\\r";
+        }else{
+            cout << it->first;
+        }
+        cout << ": " << it->second << endl;
+    }
+}
+
+void print_decode_huffcodes(map<string, unsigned char> huffcodes){
+    vector<pair<unsigned char, string>> huffcodes_vector;
+    for (map<string, unsigned char>::const_iterator it = huffcodes.begin(); it != huffcodes.end(); it++){
+        huffcodes_vector.push_back(make_pair(it->second, it->first));
+    }
+
+    sort(huffcodes_vector.begin(), huffcodes_vector.end(), sort_huffcodes);
+
+    for (vector<pair<unsigned char, string>>::const_iterator it = huffcodes_vector.begin(); it != huffcodes_vector.end(); it++){
+        if (it->first == '\n'){
+            cout << "\\n";
+        }else if (it->first == '\r'){
+            cout << "\\r";
+        }else{
+            cout << it->first;
+        }
+        cout << ": " << it->second << endl;
+    }
+}
+
 
 int main(){
     cout << "-- HUFFMAN DU PAUVRE --" << endl;
@@ -78,6 +130,7 @@ int main(){
         while (getline(file, line)){
             content += line + '\n';
         }
+        content.erase(prev(content.end()));
         file.close();
 
         // Choose mode
@@ -115,6 +168,7 @@ int main(){
             // Print tree and get the associative array
             map<unsigned char, string> huffcodes;
             set_codes(tree[0], "", &huffcodes);
+            print_encode_huffcodes(huffcodes);
 
             // Output
             ofstream outfile("out.txt", ios::out | ios::binary);
@@ -131,6 +185,7 @@ int main(){
             string binstring;
             for (unsigned int i = 0; i < content.size(); i++){
                 binstring += huffcodes[content.at(i)];
+                cout << content.at(i);
             }
             binstring = str_to_bin(binstring);
             outfile << '$' << binstring; // $ for the end of the header
@@ -141,7 +196,8 @@ int main(){
         }else{
             // MODE DECODE
             map<string, unsigned char> huffcodes;
-            char header_char = '$';
+            unsigned char header_char = '$';
+            unsigned char last_byte_mask = '$';
             string tmp, body;
             int decode_pos = 0; // 0: header | 1: body
             for (unsigned int i = 0; i < content.length(); i++){
@@ -155,19 +211,25 @@ int main(){
                         }else{
                             if (header_char != '$'){
                                 huffcodes[tmp] = header_char;
-                                cout << header_char << ": " << tmp << endl;
                             }
                             header_char = actual_char;
                             tmp = "";
                         }
                     }else{
                         huffcodes[tmp] = header_char;
+                        print_decode_huffcodes(huffcodes);
                         decode_pos = 1;
                     }
                 }else{
                     // BODY
-                    for (int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){ // Don't put c as unsigned because it throws a bad alloc erro
-                        body += ((actual_char & (1 << c)) != 0) ? "1" : "0";;
+                    if (last_byte_mask == '$'){
+                        // Get last byte mask
+                        last_byte_mask = actual_char;
+                    }else{
+                        // Decode
+                        for (int c = sizeof(unsigned char) * 8 - 1; c >= 0; c--){ // Don't put c as unsigned because it throws a bad alloc erro
+                            body += ((actual_char & (1 << c)) != 0) ? "1" : "0";;
+                        }
                     }
                 }
             }
@@ -175,7 +237,7 @@ int main(){
             // Decode body
             string output;
             tmp = "";
-            for (unsigned int c = 0; c < body.length(); c++){
+            for (unsigned int c = 0; c < body.length() - last_byte_mask; c++){
                 tmp += body[c];
                 if (huffcodes.find(tmp) != huffcodes.end()){
                     output += huffcodes[tmp];
