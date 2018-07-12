@@ -8,6 +8,7 @@
 
 using namespace std;
 
+// CUSTOM TYPE //
 struct Node{
     unsigned char value;
     unsigned int frequence;
@@ -21,6 +22,7 @@ struct Node{
     }
 };
 
+// SORTING FUNCTIONS //
 bool sort_tree(Node* a, Node* b){
     if (a->frequence != b->frequence){
         return a->frequence < b->frequence;
@@ -37,6 +39,7 @@ bool sort_huffcodes(pair<unsigned char, string> a, pair<unsigned char, string> b
     }
 }
 
+// ALGORITHM //
 string str_to_bin(string str){
     string out;
     short int counter = sizeof(unsigned char) * 8 - 1;
@@ -100,18 +103,17 @@ void write_file(string path, string content){
 }
 
 int main(){
-    cout << "-- HUFFMAN DU PAUVRE --" << endl;
-    cout << "Fichier a traiter: ";
+    cout << "-- HUFFMAN CPP --" << endl;
+    cout << "File to treat: ";
     string path;
     cin >> path;
 
     string content = get_content(path);
 
     if (content != ""){
-        // Choose mode
-        cout << "[0]: ENCODE | [1]: DECODE" << endl;
-        int mode;
-        cin >> mode;
+        // Define mode
+        int mode = (path.substr(path.find_last_of(".") + 1) == "huff");
+        cout << (mode ? "Decoding" : "Encoding") << " mode" << endl;
 
         if (mode == 0){
             // Get frequencies
@@ -183,9 +185,9 @@ int main(){
             encoded_string += body;
 
             // Save
-            encoded_string = str_to_bin(encoded_string);
-            write_file("encoded.dat", encoded_string);
-            cout << "Encoded in encoded.dat" << endl;
+            string encoded_path = path + ".huff";
+            write_file(encoded_path, str_to_bin(encoded_string));
+            cout << "Encoded as " << encoded_path << endl;
         }else{
             // MODE DECODE
             unsigned char filling_bits = content.at(0);
@@ -231,24 +233,27 @@ int main(){
             }
 
             // Decode body
-            string tmp, output;
+            string tmp, decoded_string;
             tmp = "";
             for (unsigned int c = cursor; c < decoded_binary.length() - filling_bits; c++){
                 tmp += decoded_binary[c];
                 if (huffcodes.find(tmp) != huffcodes.end()){
-                    output += huffcodes[tmp];
+                    decoded_string += huffcodes[tmp];
                     tmp = "";
                 }
             }
-            //cout << output << endl;
 
-            write_file("decoded.txt", output);
-            cout << "Decoded in decoded.txt" << endl;
+            // Save decoded
+            string decoded_path = path;
+            decoded_path.erase(decoded_path.end() - 5, decoded_path.end());
+            write_file(decoded_path, decoded_string);
+            cout << "Decoded as " << decoded_path << endl;
         }
     }else{
         cerr << "Failed to open file " << path << endl;
     }
 
-    cin >> path;
+    system("PAUSE");
+
     return 0;
 }
