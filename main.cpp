@@ -184,7 +184,8 @@ int main(){
 
             // Save
             encoded_string = str_to_bin(encoded_string);
-            write_file("out.txt", encoded_string);
+            write_file("encoded.dat", encoded_string);
+            cout << "Encoded in encoded.dat" << endl;
         }else{
             // MODE DECODE
             unsigned char filling_bits = content.at(0);
@@ -239,11 +240,15 @@ int main(){
                     tmp = "";
                 }
             }
-            cout << output << endl;
+            //cout << output << endl;
+
+            write_file("decoded.txt", output);
+            cout << "Decoded in decoded.txt" << endl;
         }
     }else{
         cerr << "Failed to open file " << path << endl;
     }
 
+    cin >> path;
     return 0;
 }
