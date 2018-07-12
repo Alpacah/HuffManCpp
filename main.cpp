@@ -10,15 +10,17 @@ using namespace std;
 
 // CUSTOM TYPE //
 struct Node{
+    bool is_internal;
     unsigned char value;
     unsigned int frequence;
     Node* leftChild;
     Node* rightChild;
 
-    Node(unsigned char m_value, unsigned int m_frequence){
+    Node(unsigned char m_value, unsigned int m_frequence, bool m_is_internal){
         leftChild = rightChild = NULL;
         value = m_value;
         frequence = m_frequence;
+        is_internal = m_is_internal;
     }
 };
 
@@ -69,7 +71,7 @@ void set_codes(Node* root, string str, map<unsigned char, string>* huff){
     if (!root){
         return;
     }else{
-        if (root->value != '$'){
+        if (!root->is_internal){
             (*huff)[root->value] = str;
             cout << root->value << ": " << str << endl;
         }
@@ -126,7 +128,7 @@ int main(){
             // Build tree
             vector<Node*> tree;
             for (map<unsigned char, unsigned int>::const_iterator it = frequencies.begin(); it != frequencies.end(); it++){
-                tree.push_back(new Node(it->first, it->second));
+                tree.push_back(new Node(it->first, it->second, false));
             }
             while (tree.size() != 1){
                 Node* left = tree[0];
@@ -134,7 +136,7 @@ int main(){
                 Node* right = tree[0];
                 tree.erase(tree.begin());
 
-                Node* top = new Node('$', left->frequence + right->frequence);
+                Node* top = new Node('$', left->frequence + right->frequence, true);
                 top->leftChild = left;
                 top->rightChild = right;
                 tree.push_back(top);
