@@ -8,5 +8,5 @@ To compress a file, just open the program and write the relative path to your fi
 Same that the compression method, juste type the path and the program will detect the '.huff' extension and decompress your file in the original path.
 
 ## Bugs and to-do
-The program works perfectly with .txt files but for a dark reason, i'm not able to compress/decompress other types like .png for example.
+The program works perfectly with .txt files but for a shady reason, I'm not able to compress/decompress other types like .png for example.
 If you have one idea on what's going wrong PLEASE TELL ME :)
